@@ -1,5 +1,7 @@
 name: Deploy Kubernetes Manifests
 
+# Trigger note: workflow can be retriggered by committing this file.
+
 on:
   push:
     branches:
