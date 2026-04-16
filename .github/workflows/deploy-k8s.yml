@@ -1,0 +1,62 @@
+name: Deploy Kubernetes Manifests
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Demo/**'
+      - '.github/workflows/deploy-k8s.yml'
+
+jobs:
+  deploy:
+    # IMPORTANT:
+    # Use a self-hosted runner that has kubectl configured for your cluster.
+    runs-on: [self-hosted]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify kubectl access
+        run: |
+          kubectl config current-context
+          kubectl get nodes
+
+      - name: Detect changed files
+        id: changes
+        run: |
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+          git diff --name-only "$BEFORE" "$AFTER" > changed_files.txt
+          cat changed_files.txt
+
+          DEV_CHANGED=false
+          STAGE_CHANGED=false
+          PROD_CHANGED=false
+
+          if grep -q '^Demo/dev/apps.yaml$' changed_files.txt; then DEV_CHANGED=true; fi
+          if grep -q '^Demo/stage/apps.yaml$' changed_files.txt; then STAGE_CHANGED=true; fi
+          if grep -q '^Demo/prod/apps.yaml$' changed_files.txt; then PROD_CHANGED=true; fi
+
+          echo "dev_changed=$DEV_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "stage_changed=$STAGE_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "prod_changed=$PROD_CHANGED" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy dev
+        if: steps.changes.outputs.dev_changed == 'true'
+        run: |
+          kubectl apply -f Demo/dev/apps.yaml
+          kubectl -n dev get deploy,pods,svc
+
+      - name: Deploy stage
+        if: steps.changes.outputs.stage_changed == 'true'
+        run: |
+          kubectl apply -f Demo/stage/apps.yaml
+          kubectl -n stage get deploy,pods,svc
+
+      - name: Deploy prod
+        if: steps.changes.outputs.prod_changed == 'true'
+        run: |
+          kubectl apply -f Demo/prod/apps.yaml
+          kubectl -n prod get deploy,pods,svc
