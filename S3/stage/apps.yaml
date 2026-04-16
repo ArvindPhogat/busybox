@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stage
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stage-nginx
+  namespace: stage
+  labels:
+    app: stage-nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: stage-nginx
+  template:
+    metadata:
+      labels:
+        app: stage-nginx
+    spec:
+      containers:
+      - name: nginx
+        image: docker.io/library/nginx:alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stage-nginx-svc
+  namespace: stage
+spec:
+  selector:
+    app: stage-nginx
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stage-busybox
+  namespace: stage
+  labels:
+    app: stage-busybox
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: stage-busybox
+  template:
+    metadata:
+      labels:
+        app: stage-busybox
+    spec:
+      containers:
+      - name: busybox
+        image: docker.io/library/busybox:1.36
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c", "while true; do echo STAGE BusyBox running; sleep 30; done"]
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi

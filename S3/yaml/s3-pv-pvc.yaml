@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: s3-host-pv
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: s3-manual
+  hostPath:
+    path: /Users/seemaphogat/projects/S3/pv-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: s3-host-pvc
+  namespace: demo
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: s3-manual

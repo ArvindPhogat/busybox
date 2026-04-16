@@ -1,0 +1,79 @@
+sabapiVersion: v1
+kind: Namespace
+metadata:
+  name: prod
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prod-nginx
+  namespace: prod
+  labels:
+    app: prod-nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: prod-nginx
+  template:
+    metadata:
+      labels:
+        app: prod-nginx
+    spec:
+      containers:
+      - name: nginx
+        image: docker.io/library/nginx:alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 150m
+            memory: 128Mi
+          limits:
+            cpu: 300m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prod-nginx-svc
+  namespace: prod
+spec:
+  selector:
+    app: prod-nginx
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prod-busybox
+  namespace: prod
+  labels:
+    app: prod-busybox
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: prod-busybox
+  template:
+    metadata:
+      labels:
+        app: prod-busybox
+    spec:
+      containers:
+      - name: busybox
+        image: docker.io/library/busybox:1.36
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c", "while true; do echo PROD BusyBox running; sleep 30; done"]
+        resources:
+          requests:
+            cpu: 75m
+            memory: 64Mi
+          limits:
+            cpu: 150m
+            memory: 128Mi

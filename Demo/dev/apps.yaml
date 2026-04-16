@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dev-nginx
+  namespace: dev
+  labels:
+    app: dev-nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dev-nginx
+  template:
+    metadata:
+      labels:
+        app: dev-nginx
+    spec:
+      containers:
+      - name: nginx
+        image: docker.io/library/nginx:alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dev-nginx-svc
+  namespace: dev
+spec:
+  selector:
+    app: dev-nginx
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dev-busybox
+  namespace: dev
+  labels:
+    app: dev-busybox
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dev-busybox
+  template:
+    metadata:
+      labels:
+        app: dev-busybox
+    spec:
+      containers:
+      - name: busybox
+        image: docker.io/library/busybox:1.36
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c", "while true; do echo DEV BusyBox running; sleep 30; done"]
+        resources:
+          requests:
+            cpu: 25m
+            memory: 16Mi
+          limits:
+            cpu: 50m
+            memory: 32Mi
