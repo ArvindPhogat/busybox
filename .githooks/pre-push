@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+EXPECTED_NAME="Arvind Phogat"
+EXPECTED_EMAIL="arvindphogat@users.noreply.github.com"
+
+NAME="$(git config --get user.name || true)"
+EMAIL="$(git config --get user.email || true)"
+
+if [ "$NAME" != "$EXPECTED_NAME" ] || [ "$EMAIL" != "$EXPECTED_EMAIL" ]; then
+  echo "ERROR: Push blocked. Use Arvind identity only."
+  echo "Expected: $EXPECTED_NAME <$EXPECTED_EMAIL>"
+  echo "Current:  $NAME <$EMAIL>"
+  exit 1
+fi
