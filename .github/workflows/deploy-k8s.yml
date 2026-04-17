@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Verify kubectl access
         run: |
@@ -32,11 +34,24 @@ jobs:
         run: |
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.sha }}"
-          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-            git diff --name-only HEAD~1 "$AFTER" > changed_files.txt
+
+          # For manual runs, deploy all env manifests.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            printf '%s\n' Demo/dev/apps.yaml Demo/stage/apps.yaml Demo/prod/apps.yaml > changed_files.txt
           else
-            git diff --name-only "$BEFORE" "$AFTER" > changed_files.txt
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              git show --name-only --pretty="" "$AFTER" > changed_files.txt
+            else
+              if git cat-file -e "$BEFORE"^{commit} 2>/dev/null; then
+                git diff --name-only "$BEFORE" "$AFTER" > changed_files.txt
+              else
+                git show --name-only --pretty="" "$AFTER" > changed_files.txt
+              fi
+            fi
           fi
+
+          # Keep only non-empty lines.
+          sed -i.bak '/^$/d' changed_files.txt && rm -f changed_files.txt.bak
           cat changed_files.txt
 
           DEV_CHANGED=false
