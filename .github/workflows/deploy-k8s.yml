@@ -3,11 +3,13 @@ name: Deploy Kubernetes Manifests
 # Trigger note: workflow can be retriggered by committing this file.
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
     paths:
       - 'Demo/**'
+      - 'S3/**'
       - '.github/workflows/deploy-k8s.yml'
 
 jobs:
@@ -30,35 +32,54 @@ jobs:
         run: |
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.sha }}"
-          git diff --name-only "$BEFORE" "$AFTER" > changed_files.txt
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            git diff --name-only HEAD~1 "$AFTER" > changed_files.txt
+          else
+            git diff --name-only "$BEFORE" "$AFTER" > changed_files.txt
+          fi
           cat changed_files.txt
 
           DEV_CHANGED=false
           STAGE_CHANGED=false
           PROD_CHANGED=false
+          DEV_FILE=""
+          STAGE_FILE=""
+          PROD_FILE=""
 
-          if grep -q '^Demo/dev/apps.yaml$' changed_files.txt; then DEV_CHANGED=true; fi
-          if grep -q '^Demo/stage/apps.yaml$' changed_files.txt; then STAGE_CHANGED=true; fi
-          if grep -q '^Demo/prod/apps.yaml$' changed_files.txt; then PROD_CHANGED=true; fi
+          if grep -Eq '^(Demo|S3)/dev/apps.yaml$' changed_files.txt; then
+            DEV_CHANGED=true
+            DEV_FILE=$(grep -E '^(Demo|S3)/dev/apps.yaml$' changed_files.txt | tail -n1)
+          fi
+          if grep -Eq '^(Demo|S3)/stage/apps.yaml$' changed_files.txt; then
+            STAGE_CHANGED=true
+            STAGE_FILE=$(grep -E '^(Demo|S3)/stage/apps.yaml$' changed_files.txt | tail -n1)
+          fi
+          if grep -Eq '^(Demo|S3)/prod/apps.yaml$' changed_files.txt; then
+            PROD_CHANGED=true
+            PROD_FILE=$(grep -E '^(Demo|S3)/prod/apps.yaml$' changed_files.txt | tail -n1)
+          fi
 
           echo "dev_changed=$DEV_CHANGED" >> "$GITHUB_OUTPUT"
           echo "stage_changed=$STAGE_CHANGED" >> "$GITHUB_OUTPUT"
           echo "prod_changed=$PROD_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "dev_file=$DEV_FILE" >> "$GITHUB_OUTPUT"
+          echo "stage_file=$STAGE_FILE" >> "$GITHUB_OUTPUT"
+          echo "prod_file=$PROD_FILE" >> "$GITHUB_OUTPUT"
 
       - name: Deploy dev
         if: steps.changes.outputs.dev_changed == 'true'
         run: |
-          kubectl apply -f Demo/dev/apps.yaml
+          kubectl apply -f "${{ steps.changes.outputs.dev_file }}"
           kubectl -n dev get deploy,pods,svc
 
       - name: Deploy stage
         if: steps.changes.outputs.stage_changed == 'true'
         run: |
-          kubectl apply -f Demo/stage/apps.yaml
+          kubectl apply -f "${{ steps.changes.outputs.stage_file }}"
           kubectl -n stage get deploy,pods,svc
 
       - name: Deploy prod
         if: steps.changes.outputs.prod_changed == 'true'
         run: |
-          kubectl apply -f Demo/prod/apps.yaml
+          kubectl apply -f "${{ steps.changes.outputs.prod_file }}"
           kubectl -n prod get deploy,pods,svc
